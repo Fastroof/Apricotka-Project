@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apricotkacash-deployment
+spec:
+  replicas: 1                      # кількість екземплярів Pod, що буде створено цим Deployment
+  selector:
+    matchLabels:
+      app: apricotkacash                # селектор по якому Deployment зв'язаний з Pod
+  template:
+    metadata:
+     labels:
+       app: apricotkacash               # мітка Pod по якому вона буде зв'язана з Deployment та Service
+    spec:
+      containers:
+        - image: apricotkacash:02       # образ Docker
+          imagePullPolicy: Never        # вказує k8s, що образ не потрібно завантажувати (варто використовувати лише для випадків, коли образи локальні)
+          name: apricotkacash           # ім'я контейнеру
+          env:
+          - name: SERVER_PORT
+            value: "8080"
+          - name: API
+            value: "/api/apricotkacash"
+          ports:
+            - containerPort: 8080  # порт по якому можна звертатись до поди

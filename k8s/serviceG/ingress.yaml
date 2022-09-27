@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: serviceg-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api/serviceg
+            pathType: "Prefix"
+            backend:
+              service:
+                name: serviceg-service
+                port:
+                  number: 80

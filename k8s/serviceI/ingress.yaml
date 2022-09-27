@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: servicei-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api/servicei
+            pathType: "Prefix"
+            backend:
+              service:
+                name: servicei-service
+                port:
+                  number: 80
