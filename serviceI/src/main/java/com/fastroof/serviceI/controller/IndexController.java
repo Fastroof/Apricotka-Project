@@ -18,7 +18,7 @@ public class IndexController {
         this.indexService = indexService;
     }
 
-    @GetMapping("/")
+    @GetMapping("")
     public String index() {
         return "Слава Україні! Я сервіс абрикосів";
     }

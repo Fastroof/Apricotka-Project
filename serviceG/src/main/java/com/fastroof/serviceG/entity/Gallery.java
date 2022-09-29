@@ -2,11 +2,13 @@ package com.fastroof.serviceG.entity;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import javax.persistence.*;
 
 @Getter
 @Setter
+@ToString
 @Entity
 @Table(name = "gallery")
 public class Gallery {
