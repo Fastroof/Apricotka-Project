@@ -8,14 +8,12 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.servlet.http.HttpServletResponse;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Controller
-@RequestMapping("${api}")
 public class MainController {
 
     private static final Logger log = Logger.getLogger(MainController.class);

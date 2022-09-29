@@ -15,3 +15,5 @@ envsubst < k8s/Apricotka/deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/Apricotka/ingress.yaml
 kubectl apply -f k8s/Apricotka/service.yaml
 minikube tunnel
+
+#kubectl exec -it <pod> -- psql -h localhost -U admin --password -p 5432 postgres

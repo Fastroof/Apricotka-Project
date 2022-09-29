@@ -5,11 +5,9 @@ import com.fastroof.serviceI.entity.ApricotImage;
 import com.fastroof.serviceI.service.IndexServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("${api}")
 public class IndexController {
 
     private final IndexServiceImpl indexService;

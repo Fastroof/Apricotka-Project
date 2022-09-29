@@ -19,7 +19,7 @@ spec:
           env:
           - name: SERVER_PORT
             value: "8080"
-          - name: API
+          - name: SERVER_SERVLET_CONTEXT_PATH
             value: "/api/apricotkacash"
           ports:
             - containerPort: 8080  # порт по якому можна звертатись до поди

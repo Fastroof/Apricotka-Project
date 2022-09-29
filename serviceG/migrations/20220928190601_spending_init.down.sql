@@ -1,2 +1,2 @@
-DROP TABLE gallery_images;
-DROP TABLE gallery;
+DROP TABLE IF EXISTS gallery_images;
+DROP TABLE IF EXISTS gallery;
