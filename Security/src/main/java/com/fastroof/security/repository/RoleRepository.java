@@ -5,12 +5,10 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.fastroof.security.models.User;
+import com.fastroof.security.models.ERole;
+import com.fastroof.security.models.Role;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-
-	Boolean existsByEmail(String email);
-
-    Optional<User> findByEmail(String username);
+public interface RoleRepository extends JpaRepository<Role, Long> {
+	Optional<Role> findByName(ERole name);
 }

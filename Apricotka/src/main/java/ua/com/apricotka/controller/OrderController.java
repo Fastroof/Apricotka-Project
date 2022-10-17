@@ -16,7 +16,6 @@ import ua.com.apricotka.repository.UserRepository;
 import ua.com.apricotka.request.OrderFormRequest;
 import ua.com.apricotka.request.OrderItemRequest;
 import ua.com.apricotka.request.OrderRequest;
-import ua.com.apricotka.service.DollarRateServiceImpl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,14 +32,12 @@ public class OrderController {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final DollarRateServiceImpl dollarRateServiceImpl;
 
     @Autowired
-    public OrderController(UserRepository userRepository, OrderRepository orderRepository, OrderItemRepository orderItemRepository, DollarRateServiceImpl dollarRateServiceImpl) {
+    public OrderController(UserRepository userRepository, OrderRepository orderRepository, OrderItemRepository orderItemRepository) {
         this.userRepository = userRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
-        this.dollarRateServiceImpl = dollarRateServiceImpl;
     }
 
     @PostMapping("/order_items")
@@ -59,7 +56,7 @@ public class OrderController {
         }
         model.addAttribute("totalPrice", totalPrice);
         model.addAttribute("items", orderItemRequests);
-        model.addAttribute("dollarRate", dollarRateServiceImpl.getRate());
+        model.addAttribute("dollarRate", 1);
         return "order";
     }
 
@@ -71,7 +68,7 @@ public class OrderController {
         order.setUserId(user.getId());
         order.setOrderDate(LocalDateTime.now());
         order.setTotalPrice(totalPrice);
-        order.setTotalPriceHryvnia((new BigDecimal(totalPrice * dollarRateServiceImpl.getRate()).setScale(2, RoundingMode.HALF_UP)).doubleValue());
+        order.setTotalPriceHryvnia((new BigDecimal(totalPrice * 1).setScale(2, RoundingMode.HALF_UP)).doubleValue());
         order.setOrderDetails("Створено");
 
         order.setFullname(form.getFname());

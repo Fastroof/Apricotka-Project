@@ -1,9 +1,0 @@
-package ua.com.apricortka.repository;
-
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.stereotype.Repository;
-import ua.com.apricortka.entity.Expense;
-
-@Repository
-public interface ExpenseRepository extends CrudRepository<Expense, Long> {
-}
