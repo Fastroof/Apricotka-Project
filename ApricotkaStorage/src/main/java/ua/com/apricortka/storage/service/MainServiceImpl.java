@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ua.com.apricortka.storage.entity.*;
 import ua.com.apricortka.storage.enums.OrderStatus;
 import ua.com.apricortka.storage.enums.OrderType;
+import ua.com.apricortka.storage.pojo.OrderItemCreateRequest;
 import ua.com.apricortka.storage.repository.*;
 
 import java.sql.Timestamp;
@@ -160,6 +161,14 @@ public class MainServiceImpl implements MainService {
     }
 
     @Override
+    public String getIncomings() {
+        String result = StreamSupport.stream(incomingProductDetailRepository.findAll().spliterator(), true)
+                .map(IncomingProductDetail::toString)
+                .collect(Collectors.joining(","));
+        return "[" + result + "]";
+    }
+
+    @Override
     public ProductWithImages getProductWithImagesById(Long id) {
         Product product = productRepository.findById(id).orElse(null);
         if (product == null) {
@@ -216,26 +225,14 @@ public class MainServiceImpl implements MainService {
     }
 
     @Override
-    public String updateIncoming(Long id, Long productId, String supplier, Double initial_price, Long quantity) {
-        if (productId == null) {
-            return "Товар не заданий";
-        }
-        Optional<Product> productOptional = productRepository.findById(productId);
-        if (!productOptional.isPresent()) {
-            return "Товар не існує";
-        } else if (initial_price == null) {
-            return "Не задана ціна";
-        } else if (quantity == null) {
+    public String updateIncoming(Long id, Long quantity) {
+        if (quantity == null) {
             return "Не задана кількість";
         }
-
         Optional<IncomingProductDetail> incomingOptional = incomingProductDetailRepository.findById(id);
         if (incomingOptional.isPresent()) {
             IncomingProductDetail incoming = incomingOptional.get();
-            incoming.setInitial_price(initial_price);
             incoming.setQuantity(quantity);
-            incoming.setSupplier(supplier);
-            incoming.setProduct(productOptional.get());
             incomingProductDetailRepository.save(incoming);
             return incoming.toString();
         }
@@ -264,28 +261,27 @@ public class MainServiceImpl implements MainService {
 
     @Override
     public String addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Long orderId) {
+        return null;
+    }
+
+    @Override
+    public OrderItem addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Order order) throws Exception {
         if (productId == null) {
-            return "Товар не заданий";
+            throw new Exception("Товар не заданий");
         }
         Optional<Product> productOptional = productRepository.findById(productId);
         if (!productOptional.isPresent()) {
-            return "Товар не існує";
+            throw new Exception("Товар " + productId +" не існує");
         } else if (initial_price == null) {
-            return "Не задана ціна закупки";
+            throw new Exception("Не задана ціна закупки " + productId);
         } else if (exQuantity == null) {
-            return "Не задана кількість";
+            throw new Exception("Не задана кількість " + productId);
         }
         List<Long> quantities = StreamSupport.stream(incomingProductDetailRepository.findAllByProductId(productOptional.get().getId()).spliterator(), false).map(IncomingProductDetail::getQuantity).collect(Collectors.toList());
         if (quantities.isEmpty() || exQuantity > Collections.max(quantities)) {
-            return "Товару не достатньо за даною ціною";
+            throw new Exception("Товару "+ productId + productOptional.get().getName() +" не достатньо за даною ціною");
         } else if (price == null) {
-            return "Не задана ціна продажу";
-        } else if (orderId == null) {
-            return "Не заданий id замовлення";
-        }
-        Optional<Order> orderOptional = orderRepository.findById(orderId);
-        if (!orderOptional.isPresent()) {
-            return "Замовлення не існує";
+            throw new Exception("Не задана ціна продажу для" + productId);
         }
 
         OrderItem orderItem = new OrderItem();
@@ -293,9 +289,9 @@ public class MainServiceImpl implements MainService {
         orderItem.setInitialPrice(initial_price);
         orderItem.setPrice(price);
         orderItem.setProductId(productId);
-        orderItem.setOrder(orderOptional.get());
+        orderItem.setOrder(order);
         orderItemRepository.save(orderItem);
-        return orderItem.toString();
+        return orderItem;
     }
 
     @Override
@@ -325,11 +321,24 @@ public class MainServiceImpl implements MainService {
     }
 
     @Override
-    public String createOrder(OrderStatus status, OrderType type, Long user_id) {
+    @Transactional(rollbackFor = Exception.class)
+    public String createOrder(OrderStatus status, OrderType type, Long user_id, String address, String email, String payment, String paymentType, String phone, String username, List<OrderItemCreateRequest> orderItemCreateRequests) throws Exception {
         if (status == null) {
             return "Не введений статус";
-        } else if (user_id == null) {
-            return "Не введений користувач";
+        } else if (username == null) {
+            return "Не введений ПІБ";
+        } else if (address == null) {
+            return "Не введений адрес доставки";
+        } else if (paymentType == null) {
+            return "Не введений тип оплати";
+        } else if (payment == null) {
+            return "Не введена оплата";
+        } else if (email == null) {
+            return "Не введений email";
+        } else if (phone == null) {
+            return "Не введений номер телефона";
+        } else if (orderItemCreateRequests == null || orderItemCreateRequests.isEmpty()) {
+            return "orderItemCreateRequests not found";
         }
 
         Order order = new Order();
@@ -337,8 +346,26 @@ public class MainServiceImpl implements MainService {
         order.setTimestamp(new Timestamp(System.currentTimeMillis()));
         order.setType(type);
         order.setUserId(user_id);
+        order.setAddress(address);
+        order.setEmail(email);
+        order.setPaymentType(paymentType);
+        order.setPayment(payment);
+        order.setPhone(phone);
+        order.setUsername(username);
         orderRepository.save(order);
-        return order.toString();
+
+        for (OrderItemCreateRequest item: orderItemCreateRequests) {
+            addOrderItem(
+                    item.getProductId(),
+                    item.getInitialPrice(),
+                    item.getExQuantity(),
+                    item.getPrice(),
+                    order
+            );
+        }
+
+        orderRepository.save(order);
+        return "Замовлення сформовано, чекайте на підтвердження";
     }
 
     @Override

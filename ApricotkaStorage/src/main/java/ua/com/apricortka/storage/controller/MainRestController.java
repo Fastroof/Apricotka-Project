@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import ua.com.apricortka.storage.entity.Product;
 import ua.com.apricortka.storage.entity.ProductWithImages;
 import ua.com.apricortka.storage.enums.OrderStatus;
-import ua.com.apricortka.storage.enums.OrderType;
+import ua.com.apricortka.storage.pojo.OrderCreateRequest;
 import ua.com.apricortka.storage.service.MainService;
 
 @RestController()
@@ -75,7 +75,6 @@ public class MainRestController {
     }
 
     // Product Images
-
     @GetMapping("/products-images")
     public String getProductImages() {
         return mainService.getAllProductImages();
@@ -85,13 +84,17 @@ public class MainRestController {
     public ProductWithImages getProductWithImages(@PathVariable Long id) {
         return mainService.getProductWithImagesById(id);
     }
-
     @GetMapping("/product-images/{id}")
     public String getProductImagesById(@PathVariable Long id) {
         return mainService.getProductImages(id);
     }
 
     // Incoming Product Details
+
+    @GetMapping("/incomings")
+    public String getIncomings() {
+        return mainService.getIncomings();
+    }
 
     @GetMapping("/incoming/{productId}")
     public String getIncomingByProductId(@PathVariable Long productId) {
@@ -104,8 +107,8 @@ public class MainRestController {
     }
 
     @PutMapping("/incoming/{id}")
-    public String updateIncoming(@PathVariable Long id, Long productId, String supplier, Double initial_price, Long quantity) {
-        return mainService.updateIncoming(id, productId, supplier, initial_price, quantity);
+    public String updateIncoming(@PathVariable Long id, Long quantity) {
+        return mainService.updateIncoming(id, quantity);
     }
 
     @DeleteMapping("/incoming/{id}")
@@ -121,7 +124,7 @@ public class MainRestController {
     }
 
     @PostMapping("/order-item")
-    public String addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Long orderId) {
+    public String addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Long orderId) throws Exception {
         return mainService.addOrderItem(productId, initial_price, exQuantity, price, orderId);
     }
 
@@ -147,14 +150,28 @@ public class MainRestController {
         return mainService.getOrderByUserId(user_id);
     }
 
-    @PostMapping("/order")
-    public String createOrder(OrderStatus status, OrderType type, Long user_id) {
-        return mainService.createOrder(status, type, user_id);
+    @PostMapping(value = "/order", consumes = "application/json")
+    public String createOrder(@RequestBody OrderCreateRequest orderCreateRequest) {
+        try {
+            return mainService.createOrder(
+                    orderCreateRequest.getStatus(),
+                    orderCreateRequest.getType(),
+                    orderCreateRequest.getUser_id(),
+                    orderCreateRequest.getAddress(),
+                    orderCreateRequest.getEmail(),
+                    orderCreateRequest.getPayment(),
+                    orderCreateRequest.getPaymentType(),
+                    orderCreateRequest.getPhone(),
+                    orderCreateRequest.getUsername(),
+                    orderCreateRequest.getOrderItemCreateRequests()
+            );
+        } catch (Exception e) {
+            return e.getMessage();
+        }
     }
 
     @PutMapping("/order/{id}")
     public String updateOrderStatus(@PathVariable Long id, OrderStatus status) {
         return mainService.updateOrderStatus(id, status);
     }
-
 }

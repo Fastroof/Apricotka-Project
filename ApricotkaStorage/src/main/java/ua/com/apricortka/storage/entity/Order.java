@@ -36,8 +36,26 @@ public class Order {
     @Column(name = "timestamp", nullable = false)
     private Timestamp timestamp;
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     private Long userId;
+
+    @Column(name = "username", nullable = false)
+    private String username;
+
+    @Column(name = "email", nullable = false)
+    private String email;
+
+    @Column(name = "phone", nullable = false)
+    private String phone;
+
+    @Column(name = "address", nullable = false, length = 1000)
+    private String address;
+
+    @Column(name = "payment_type", nullable = false)
+    private String paymentType;
+
+    @Column(name = "payment", nullable = false, length = 1000)
+    private String payment;
 
     @Override
     public String toString() {
@@ -45,9 +63,15 @@ public class Order {
                 "\"id\":" + id +
                 ", \"type\":" + type +
                 ", \"status\":" + status +
-                ", \"order_items\":" + orderItems +
+                ", \"orderItems\":" + orderItems +
                 ", \"timestamp\":" + timestamp +
-                ", \"user_id\":" + userId +
+                ", \"userId\":" + userId +
+                ", \"username\":\"" + username + '\"' +
+                ", \"email\":\"" + email + '\"' +
+                ", \"phone\":\"" + phone + '\"' +
+                ", \"address\":\"" + address + '\"' +
+                ", \"paymentType\":\"" + paymentType + '\"' +
+                ", \"payment\":\"" + payment + '\"' +
                 '}';
     }
 }

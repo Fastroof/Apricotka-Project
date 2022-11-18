@@ -39,11 +39,11 @@ public class IncomingProductDetail {
     public String toString() {
         return "{" +
                 "\"id\":" + id +
-                ", \"product_id\":" + product.getId() +
-                ", \"supplier\":\"" + supplier + '\"' +
+                ", \"productId\":" + product.getId() +
+                ", \"supplier\":\"" + supplier.replaceAll("\"", "'") + '\"' +
                 ", \"initial_price\":" + initial_price +
                 ", \"quantity\":" + quantity +
-                ", \"timestamp\":" + timestamp +
+                ", \"timestamp\":\"" + timestamp + '\"' +
                 '}';
     }
 }
