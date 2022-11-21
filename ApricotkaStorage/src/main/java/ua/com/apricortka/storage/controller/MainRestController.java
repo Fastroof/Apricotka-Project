@@ -1,12 +1,19 @@
 package ua.com.apricortka.storage.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ua.com.apricortka.storage.entity.Product;
 import ua.com.apricortka.storage.entity.ProductWithImages;
 import ua.com.apricortka.storage.enums.OrderStatus;
 import ua.com.apricortka.storage.pojo.OrderCreateRequest;
 import ua.com.apricortka.storage.service.MainService;
+
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 @RestController()
 @RequestMapping(produces="application/json")
@@ -23,6 +30,33 @@ public class MainRestController {
     @GetMapping("/")
     public String alive() {
         return "Слава Україні \uD83C\uDDFA\uD83C\uDDE6!\nApricotka Storage";
+    }
+
+    @Value("${link.to.service.image-storage}")
+    private String linkToImageStorage;
+
+    @Value("${link.to.service.security}")
+    private String linkToSecurity;
+
+    @ResponseBody
+    @GetMapping("/alive/services")
+    public ResponseEntity<Boolean> checkLiveServices() {
+        boolean alive = false;
+        try {
+            alive = okReq(linkToImageStorage) && okReq(linkToSecurity);
+        } catch (Exception ignored) {}
+        if (alive) {
+            return new ResponseEntity<>(true, HttpStatus.FORBIDDEN);
+        }
+        return new ResponseEntity<>(false, HttpStatus.OK);
+    }
+
+    private boolean okReq(String link) throws IOException {
+        URL url = new URL(link);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        int responseCode = con.getResponseCode();
+        return responseCode == HttpURLConnection.HTTP_OK;
     }
 
     // Category
