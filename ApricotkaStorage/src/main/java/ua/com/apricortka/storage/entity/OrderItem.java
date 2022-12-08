@@ -1,5 +1,6 @@
 package ua.com.apricortka.storage.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,12 +20,14 @@ public class OrderItem {
             allocationSize = 1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_item_id_seq_gen")
     @Column(name = "id", nullable = false, unique = true)
+    @JsonIgnore
     private Long id;
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
     @Column(name = "initial_price", nullable = false)
+    @JsonIgnore
     private Double initialPrice;
 
     @Column(name = "ex_quantity", nullable = false)
@@ -35,6 +38,7 @@ public class OrderItem {
 
     @ManyToOne
     @JoinColumn(name = "order_id")
+    @JsonIgnore
     private Order order;
 
     @Override

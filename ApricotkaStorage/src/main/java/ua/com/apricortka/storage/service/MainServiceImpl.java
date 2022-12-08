@@ -1,19 +1,20 @@
 package ua.com.apricortka.storage.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import ua.com.apricortka.storage.entity.*;
 import ua.com.apricortka.storage.enums.OrderStatus;
 import ua.com.apricortka.storage.enums.OrderType;
+import ua.com.apricortka.storage.pojo.Available;
 import ua.com.apricortka.storage.pojo.OrderItemCreateRequest;
 import ua.com.apricortka.storage.repository.*;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -201,6 +202,7 @@ public class MainServiceImpl implements MainService {
     }
 
     @Override
+    @Transactional
     public String addIncoming(Long productId, String supplier, Double initial_price, Long quantity) {
         if (productId == null) {
             return "Товар не заданий";
@@ -213,14 +215,15 @@ public class MainServiceImpl implements MainService {
         } else if (quantity == null) {
             return "Не задана кількість";
         }
-
+        Product product = productOptional.get();
         IncomingProductDetail incoming = new IncomingProductDetail();
         incoming.setInitial_price(initial_price);
         incoming.setQuantity(quantity);
         incoming.setSupplier(supplier);
         incoming.setTimestamp(new Timestamp(System.currentTimeMillis()));
-        incoming.setProduct(productOptional.get());
-        incomingProductDetailRepository.save(incoming);
+        incoming.setProduct(product);
+        product.getIncomingProductDetails().add(incoming);
+        productRepository.save(product);
         return incoming.toString();
     }
 
@@ -241,7 +244,12 @@ public class MainServiceImpl implements MainService {
 
     @Override
     public String deleteIncoming(Long id) {
-        if (incomingProductDetailRepository.existsById(id)) {
+        Optional<IncomingProductDetail> incOpt = incomingProductDetailRepository.findById(id);
+        if (incOpt.isPresent()) {
+            IncomingProductDetail inc = incOpt.get();
+            Product product = inc.getProduct();
+            product.getIncomingProductDetails().remove(inc);
+            productRepository.save(product);
             incomingProductDetailRepository.deleteById(id);
             return "Завоз успішно видалена";
         }
@@ -265,7 +273,8 @@ public class MainServiceImpl implements MainService {
     }
 
     @Override
-    public OrderItem addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Order order) throws Exception {
+    @Transactional
+    public boolean addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Order order) throws Exception {
         if (productId == null) {
             throw new Exception("Товар не заданий");
         }
@@ -277,21 +286,44 @@ public class MainServiceImpl implements MainService {
         } else if (exQuantity == null) {
             throw new Exception("Не задана кількість " + productId);
         }
-        List<Long> quantities = StreamSupport.stream(incomingProductDetailRepository.findAllByProductId(productOptional.get().getId()).spliterator(), false).map(IncomingProductDetail::getQuantity).collect(Collectors.toList());
-        if (quantities.isEmpty() || exQuantity > Collections.max(quantities)) {
-            throw new Exception("Товару "+ productId + productOptional.get().getName() +" не достатньо за даною ціною");
+        Iterable<IncomingProductDetail> incomingProductDetails = incomingProductDetailRepository.findAllByProductId(productOptional.get().getId());
+        List<Long> quantities = StreamSupport.stream(incomingProductDetails.spliterator(), false).map(IncomingProductDetail::getQuantity).collect(Collectors.toList());
+        if (quantities.isEmpty() || exQuantity > quantities.stream().mapToLong(Long::longValue).sum()) {
+            throw new Exception("Товару ("+ productId + ") " + productOptional.get().getName() +" не достатньо");
         } else if (price == null) {
             throw new Exception("Не задана ціна продажу для" + productId);
         }
 
-        OrderItem orderItem = new OrderItem();
-        orderItem.setExQuantity(exQuantity);
-        orderItem.setInitialPrice(initial_price);
-        orderItem.setPrice(price);
-        orderItem.setProductId(productId);
-        orderItem.setOrder(order);
-        orderItemRepository.save(orderItem);
-        return orderItem;
+        for (IncomingProductDetail incoming: incomingProductDetails) {
+            long inq = incoming.getQuantity();
+            double inp = incoming.getInitial_price();
+            if (exQuantity == 0) {
+                break;
+            } else if (exQuantity < 0) {
+                throw new Exception("addOrderItem -> incoming -> exQuantity < 0");
+            } else if (inq <= exQuantity) {
+                exQuantity = exQuantity - inq;
+                incoming.setQuantity(0L);
+            } else {
+                incoming.setQuantity(inq - exQuantity);
+                inq = exQuantity;
+                exQuantity = 0L;
+            }
+            incomingProductDetailRepository.save(incoming);
+
+            OrderItem orderItem = new OrderItem();
+            orderItem.setExQuantity(inq);
+            orderItem.setInitialPrice(inp);
+            orderItem.setPrice(price);
+            orderItem.setProductId(productId);
+            orderItem.setOrder(order);
+            if (order.getOrderItems() == null) {
+                order.setOrderItems(new ArrayList<>());
+            }
+            order.getOrderItems().add(orderItem);
+            orderRepository.save(order);
+        }
+        return true;
     }
 
     @Override
@@ -312,12 +344,14 @@ public class MainServiceImpl implements MainService {
 
     @Override
     public String getOrderById(Long id) {
-        return orderRepository.findById(id).toString();
+        Optional<Order> orderOptional = orderRepository.findById(id);
+        return orderOptional.map(Order::toString).orElse(null);
     }
 
     @Override
     public String getOrderByUserId(Long user_id) {
-        return orderRepository.findByUserId(user_id).toString();
+        Optional<Order> orderOptional = orderRepository.findByUserId(user_id);
+        return orderOptional.map(Order::toString).orElse(null);
     }
 
     @Override
@@ -363,9 +397,48 @@ public class MainServiceImpl implements MainService {
                     order
             );
         }
-
-        orderRepository.save(order);
+        String title = "Замовлення #"+order.getId() + " сформоване.";
+        StringBuilder orderItemsString = new StringBuilder();
+        for (OrderItemCreateRequest orderItemCreateRequest : orderItemCreateRequests) {
+            orderItemsString.append("x").append(orderItemCreateRequest.getExQuantity()).append(" ");
+            Optional<Product> productOptional = productRepository.findById(orderItemCreateRequest.getProductId());
+            if (productOptional.isPresent()) {
+                orderItemsString.append(productOptional.get().getName());
+            } else {
+                orderItemsString.append(orderItemCreateRequest.getProductId());
+            }
+            orderItemsString.append("\n");
+        }
+        if (this.sendMessage(email, title, title +
+                "\nОтримувач: "+username+
+                "\nАдреса: "+address+
+                "\nТелефон: "+phone+
+                "\nТип оплати: "+paymentType+
+                "\n\nВміст замовлення: \n"+ orderItemsString +
+                "\n\nЧекайте на підтвердження від оператора.\n")) {
+            return "Замовлення сформовано, чекайте на підтвердження. На " + email + " продубльовано замовлення.";
+        }
         return "Замовлення сформовано, чекайте на підтвердження";
+    }
+
+    @Value("${link.to.service.messenger}")
+    private String linkToMessenger;
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    public boolean sendMessage(String mail, String title, String body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> map = new HashMap<>();
+        map.put("recipient", mail);
+        map.put("subject", title);
+        map.put("msgBody", body);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(map, headers);
+        ResponseEntity<String> response = this.restTemplate.postForEntity(linkToMessenger+"sendMail", entity, String.class);
+        if (response.getStatusCode() == HttpStatus.OK) {
+            return "Mail Sent Successfully...".equals(response.getBody());
+        }
+        return false;
     }
 
     @Override
@@ -383,5 +456,39 @@ public class MainServiceImpl implements MainService {
         return "Нема замовлення з таким id";
     }
 
+    @Override
+    public List<Order> getOrderByEmailOrUserId(String email, Long userId) {
+        return orderRepository.findAllByUserIdOrEmail(userId, email);
+    }
+
+    @Override
+    public String getHowManyByProductId(Long productId) throws Exception {
+        Optional<Product> productOptional = productRepository.findById(productId);
+        if (!productOptional.isPresent()) {
+            throw new Exception("Товар " + productId +" не існує");
+        }
+        long inq = 0;
+        for (IncomingProductDetail incoming: productOptional.get().getIncomingProductDetails()) {
+            inq += incoming.getQuantity();
+        }
+        return "{\"q\": "+inq+"}";
+    }
+
+    @Override
+    public List<Available> getHowManyAll() {
+        Iterable<Product> products = productRepository.findAll();
+        List<Available> availables = new ArrayList<>();
+        products.forEach(product -> {
+            Available available = new Available();
+            available.setProductId(product.getId());
+            long inq = 0;
+            for (IncomingProductDetail incoming: product.getIncomingProductDetails()) {
+                inq += incoming.getQuantity();
+            }
+            available.setQ(inq);
+            availables.add(available);
+        });
+        return availables;
+    }
 
 }

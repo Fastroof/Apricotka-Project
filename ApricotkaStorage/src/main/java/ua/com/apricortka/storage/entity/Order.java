@@ -1,5 +1,7 @@
 package ua.com.apricortka.storage.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import ua.com.apricortka.storage.enums.OrderStatus;
 import ua.com.apricortka.storage.enums.OrderType;
@@ -24,47 +26,54 @@ public class Order {
 
     @Column(name = "type")
     @Enumerated(EnumType.STRING)
+    @JsonIgnore
     private OrderType type;
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL,fetch = FetchType.EAGER)
     List<OrderItem> orderItems;
 
     @Column(name = "timestamp", nullable = false)
+    @JsonFormat(pattern="dd.MM.yyyy HH:mm")
     private Timestamp timestamp;
 
     @Column(name = "user_id")
     private Long userId;
 
     @Column(name = "username", nullable = false)
+    @JsonIgnore
     private String username;
 
     @Column(name = "email", nullable = false)
     private String email;
 
     @Column(name = "phone", nullable = false)
+    @JsonIgnore
     private String phone;
 
     @Column(name = "address", nullable = false, length = 1000)
+    @JsonIgnore
     private String address;
 
     @Column(name = "payment_type", nullable = false)
+    @JsonIgnore
     private String paymentType;
 
     @Column(name = "payment", nullable = false, length = 1000)
+    @JsonIgnore
     private String payment;
 
     @Override
     public String toString() {
         return "{" +
                 "\"id\":" + id +
-                ", \"type\":" + type +
-                ", \"status\":" + status +
+                ", \"type\":\"" + type + '"' +
+                ", \"status\":\"" + status + '"' +
                 ", \"orderItems\":" + orderItems +
-                ", \"timestamp\":" + timestamp +
+                ", \"timestamp\":\"" + timestamp + '"' +
                 ", \"userId\":" + userId +
                 ", \"username\":\"" + username + '\"' +
                 ", \"email\":\"" + email + '\"' +
