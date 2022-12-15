@@ -5,12 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ua.com.apricortka.storage.entity.Order;
 import ua.com.apricortka.storage.entity.Product;
 import ua.com.apricortka.storage.entity.ProductWithImages;
-import ua.com.apricortka.storage.enums.OrderStatus;
 import ua.com.apricortka.storage.pojo.Available;
-import ua.com.apricortka.storage.pojo.OrderCreateRequest;
 import ua.com.apricortka.storage.service.MainService;
 
 import java.io.IOException;
@@ -43,7 +40,7 @@ public class MainRestController {
 
     @GetMapping("/test/mail")
     public boolean checkAliveMessenger() {
-        return mainService.sendMessage("lytvdan@gmail.com", "Test", "Слава Україні \uD83C\uDDFA\uD83C\uDDE6!");
+        return mainService.sendMessage("lytvdan@gmail.com", "ApricotkaStorage", "Слава Україні \uD83C\uDDFA\uD83C\uDDE6!");
     }
 
     @ResponseBody
@@ -172,69 +169,5 @@ public class MainRestController {
     @DeleteMapping("/incoming/{id}")
     public String deleteIncoming(@PathVariable Long id) {
         return mainService.deleteIncoming(id);
-    }
-
-    // Order Item
-
-    @GetMapping("/order-item/{id}")
-    public String getOrderItemById(@PathVariable Long id) {
-        return mainService.getOrderItemById(id);
-    }
-
-    @PostMapping("/order-item")
-    public String addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Long orderId) throws Exception {
-        return mainService.addOrderItem(productId, initial_price, exQuantity, price, orderId);
-    }
-
-    @DeleteMapping("/order-item/{id}")
-    public String deleteOrderItem(@PathVariable Long id) {
-        return mainService.deleteOrderItem(id);
-    }
-
-    // Order
-
-    @GetMapping("/orders")
-    public String getAllOrders() {
-        return mainService.getAllOrders();
-    }
-
-    @GetMapping("/order/{id}")
-    public String getOrderById(@PathVariable Long id) {
-        return mainService.getOrderById(id);
-    }
-
-    @GetMapping("/order/user/{user_id}")
-    public String getOrderByUserId(@PathVariable Long user_id) {
-        return mainService.getOrderByUserId(user_id);
-    }
-
-    @GetMapping("/order")
-    public List<Order> getOrderByEmailOrUserId(@RequestParam Long userId, @RequestParam String email) {
-        return mainService.getOrderByEmailOrUserId(email, userId);
-    }
-
-    @PostMapping(value = "/order", consumes = "application/json")
-    public String createOrder(@RequestBody OrderCreateRequest orderCreateRequest) {
-        try {
-            return mainService.createOrder(
-                    orderCreateRequest.getStatus(),
-                    orderCreateRequest.getType(),
-                    orderCreateRequest.getUser_id(),
-                    orderCreateRequest.getAddress(),
-                    orderCreateRequest.getEmail(),
-                    orderCreateRequest.getPayment(),
-                    orderCreateRequest.getPaymentType(),
-                    orderCreateRequest.getPhone(),
-                    orderCreateRequest.getUsername(),
-                    orderCreateRequest.getOrderItemCreateRequests()
-            );
-        } catch (Exception e) {
-            return e.getMessage();
-        }
-    }
-
-    @PutMapping("/order/{id}")
-    public String updateOrderStatus(@PathVariable Long id, OrderStatus status) {
-        return mainService.updateOrderStatus(id, status);
     }
 }

@@ -7,10 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import ua.com.apricortka.storage.entity.*;
-import ua.com.apricortka.storage.enums.OrderStatus;
-import ua.com.apricortka.storage.enums.OrderType;
 import ua.com.apricortka.storage.pojo.Available;
-import ua.com.apricortka.storage.pojo.OrderItemCreateRequest;
 import ua.com.apricortka.storage.repository.*;
 
 import java.sql.Timestamp;
@@ -25,22 +22,16 @@ public class MainServiceImpl implements MainService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final IncomingProductDetailRepository incomingProductDetailRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final OrderRepository orderRepository;
     private final ProductImageRepository productImageRepository;
 
     @Autowired
     public MainServiceImpl(CategoryRepository categoryRepository,
                            ProductRepository productRepository,
                            IncomingProductDetailRepository incomingProductDetailRepository,
-                           OrderItemRepository orderItemRepository,
-                           OrderRepository orderRepository,
                            ProductImageRepository productImageRepository) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.incomingProductDetailRepository = incomingProductDetailRepository;
-        this.orderItemRepository = orderItemRepository;
-        this.orderRepository = orderRepository;
         this.productImageRepository = productImageRepository;
     }
 
@@ -256,171 +247,6 @@ public class MainServiceImpl implements MainService {
         return "Не існує завозу з таким id";
     }
 
-    // Order Item
-
-    @Override
-    public String getOrderItemById(Long id) {
-        Optional<OrderItem> orderItem = orderItemRepository.findById(id);
-        if (orderItem.isPresent()) {
-            return orderItem.toString();
-        }
-        return "Не знайдено order item з таким id";
-    }
-
-    @Override
-    public String addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Long orderId) {
-        return null;
-    }
-
-    @Override
-    @Transactional
-    public boolean addOrderItem(Long productId, Double initial_price, Long exQuantity, Double price, Order order) throws Exception {
-        if (productId == null) {
-            throw new Exception("Товар не заданий");
-        }
-        Optional<Product> productOptional = productRepository.findById(productId);
-        if (!productOptional.isPresent()) {
-            throw new Exception("Товар " + productId +" не існує");
-        } else if (initial_price == null) {
-            throw new Exception("Не задана ціна закупки " + productId);
-        } else if (exQuantity == null) {
-            throw new Exception("Не задана кількість " + productId);
-        }
-        Iterable<IncomingProductDetail> incomingProductDetails = incomingProductDetailRepository.findAllByProductId(productOptional.get().getId());
-        List<Long> quantities = StreamSupport.stream(incomingProductDetails.spliterator(), false).map(IncomingProductDetail::getQuantity).collect(Collectors.toList());
-        if (quantities.isEmpty() || exQuantity > quantities.stream().mapToLong(Long::longValue).sum()) {
-            throw new Exception("Товару ("+ productId + ") " + productOptional.get().getName() +" не достатньо");
-        } else if (price == null) {
-            throw new Exception("Не задана ціна продажу для" + productId);
-        }
-
-        for (IncomingProductDetail incoming: incomingProductDetails) {
-            long inq = incoming.getQuantity();
-            double inp = incoming.getInitial_price();
-            if (exQuantity == 0) {
-                break;
-            } else if (exQuantity < 0) {
-                throw new Exception("addOrderItem -> incoming -> exQuantity < 0");
-            } else if (inq <= exQuantity) {
-                exQuantity = exQuantity - inq;
-                incoming.setQuantity(0L);
-            } else {
-                incoming.setQuantity(inq - exQuantity);
-                inq = exQuantity;
-                exQuantity = 0L;
-            }
-            incomingProductDetailRepository.save(incoming);
-
-            OrderItem orderItem = new OrderItem();
-            orderItem.setExQuantity(inq);
-            orderItem.setInitialPrice(inp);
-            orderItem.setPrice(price);
-            orderItem.setProductId(productId);
-            orderItem.setOrder(order);
-            if (order.getOrderItems() == null) {
-                order.setOrderItems(new ArrayList<>());
-            }
-            order.getOrderItems().add(orderItem);
-            orderRepository.save(order);
-        }
-        return true;
-    }
-
-    @Override
-    public String deleteOrderItem(Long id) {
-        if (orderItemRepository.existsById(id)) {
-            orderItemRepository.deleteById(id);
-            return "Спис успішно видалений";
-        }
-        return "Не існує спису з таким id";
-    }
-
-    // Orders
-
-    @Override
-    public String getAllOrders() {
-        return orderRepository.findAll().toString();
-    }
-
-    @Override
-    public String getOrderById(Long id) {
-        Optional<Order> orderOptional = orderRepository.findById(id);
-        return orderOptional.map(Order::toString).orElse(null);
-    }
-
-    @Override
-    public String getOrderByUserId(Long user_id) {
-        Optional<Order> orderOptional = orderRepository.findByUserId(user_id);
-        return orderOptional.map(Order::toString).orElse(null);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public String createOrder(OrderStatus status, OrderType type, Long user_id, String address, String email, String payment, String paymentType, String phone, String username, List<OrderItemCreateRequest> orderItemCreateRequests) throws Exception {
-        if (status == null) {
-            return "Не введений статус";
-        } else if (username == null) {
-            return "Не введений ПІБ";
-        } else if (address == null) {
-            return "Не введений адрес доставки";
-        } else if (paymentType == null) {
-            return "Не введений тип оплати";
-        } else if (payment == null) {
-            return "Не введена оплата";
-        } else if (email == null) {
-            return "Не введений email";
-        } else if (phone == null) {
-            return "Не введений номер телефона";
-        } else if (orderItemCreateRequests == null || orderItemCreateRequests.isEmpty()) {
-            return "orderItemCreateRequests not found";
-        }
-
-        Order order = new Order();
-        order.setStatus(status);
-        order.setTimestamp(new Timestamp(System.currentTimeMillis()));
-        order.setType(type);
-        order.setUserId(user_id);
-        order.setAddress(address);
-        order.setEmail(email);
-        order.setPaymentType(paymentType);
-        order.setPayment(payment);
-        order.setPhone(phone);
-        order.setUsername(username);
-        orderRepository.save(order);
-
-        for (OrderItemCreateRequest item: orderItemCreateRequests) {
-            addOrderItem(
-                    item.getProductId(),
-                    item.getInitialPrice(),
-                    item.getExQuantity(),
-                    item.getPrice(),
-                    order
-            );
-        }
-        String title = "Замовлення #"+order.getId() + " сформоване.";
-        StringBuilder orderItemsString = new StringBuilder();
-        for (OrderItemCreateRequest orderItemCreateRequest : orderItemCreateRequests) {
-            orderItemsString.append("x").append(orderItemCreateRequest.getExQuantity()).append(" ");
-            Optional<Product> productOptional = productRepository.findById(orderItemCreateRequest.getProductId());
-            if (productOptional.isPresent()) {
-                orderItemsString.append(productOptional.get().getName());
-            } else {
-                orderItemsString.append(orderItemCreateRequest.getProductId());
-            }
-            orderItemsString.append("\n");
-        }
-        if (this.sendMessage(email, title, title +
-                "\nОтримувач: "+username+
-                "\nАдреса: "+address+
-                "\nТелефон: "+phone+
-                "\nТип оплати: "+paymentType+
-                "\n\nВміст замовлення: \n"+ orderItemsString +
-                "\n\nЧекайте на підтвердження від оператора.\n")) {
-            return "Замовлення сформовано, чекайте на підтвердження. На " + email + " продубльовано замовлення.";
-        }
-        return "Замовлення сформовано, чекайте на підтвердження";
-    }
-
     @Value("${link.to.service.messenger}")
     private String linkToMessenger;
     private final RestTemplate restTemplate = new RestTemplate();
@@ -439,26 +265,6 @@ public class MainServiceImpl implements MainService {
             return "Mail Sent Successfully...".equals(response.getBody());
         }
         return false;
-    }
-
-    @Override
-    public String updateOrderStatus(Long id, OrderStatus status) {
-        if (status == null) {
-            return "Не введений статус";
-        }
-        Optional<Order> orderOptional = orderRepository.findById(id);
-        if (orderOptional.isPresent()) {
-            Order order = orderOptional.get();
-            order.setStatus(status);
-            orderRepository.save(order);
-            return order.toString();
-        }
-        return "Нема замовлення з таким id";
-    }
-
-    @Override
-    public List<Order> getOrderByEmailOrUserId(String email, Long userId) {
-        return orderRepository.findAllByUserIdOrEmail(userId, email);
     }
 
     @Override
